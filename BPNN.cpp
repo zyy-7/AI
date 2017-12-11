@@ -27,6 +27,7 @@ int cnt_times;
 int cnt_hidden_node; 
 //Åú
 int cnt_batch; 
+double relu_a = 0.000001;
 
 double stringToNum(string str)  
 {  
@@ -42,6 +43,25 @@ double Sigmoid(double x)
 	return result;
 }
 
+double Relu(double x)
+{
+	if(x > 0)
+		return x;
+	else
+	{
+		x *= relu_a;
+	}
+	return x;
+} 
+
+double DerivativeOfRelu(double x)
+{
+	if(x > 0)
+		return (double)1;
+	else
+	 	return relu_a;
+}
+
 double DerivativeOfSig(double x)
 {
 	double result = (double) Sigmoid(x) * (1 - Sigmoid(x));
@@ -50,11 +70,11 @@ double DerivativeOfSig(double x)
 
 void DynamicStep()
 {
-	if(Step > 0.1)
+/*	if(Step > 0.1)
 		Step *= 0.09;
 	else if(Step > 0.01)
 		Step *= 0.5;
-	else
+	else */
 		Step *= 0.9999;
 } 
 
@@ -115,7 +135,8 @@ void Init()
 	cnt_layer = 2;
 	cnt_times = 10000;
 	cnt_hidden_node = 20;
-	Step = 0.7;
+//	Step = 0.7;
+	Step = 0.001;
 	cnt_batch = 1;
 	
 	for(int i = 0; i < Train.size(); i++)
@@ -205,7 +226,7 @@ vector<double> GetOutH(vector<double> InH)
 	vector<double> OutH;
 	for(int i = 0; i < InH.size(); i++)
 	{
-		OutH.push_back(Sigmoid(InH[i]));
+		OutH.push_back(Relu(InH[i]));
 	/*	cout << "In " <<  InH[i] << endl;*/
 	//	cout << "Out " << Sigmoid(InH[i]) << endl; 
 	}
@@ -251,7 +272,7 @@ vector<double> GetAj(int n, double a0, vector<double> OutH)
 	vector<double> aj;
 	for(int j = 1; j < OutH.size(); j++)
 	{
-		double a = a0 * Wj[j] * DerivativeOfSig(OutH[j]);
+		double a = a0 * Wj[j] * DerivativeOfRelu(OutH[j]);
 		aj.push_back(a);
 	/*	cout << a << endl;
 		cout << a0 << endl;
@@ -364,13 +385,6 @@ int main()
 	Input();
 	Init();
 	DealWithData();
-	
-/*	for(int i = 0; i < X.size(); i++)
-	{
-		for(int j = 0; j < X[i].size(); j++)
-			cout << X[i][j] << " ";
-		cout << endl;
-	}*/
 	
 	vector<double> getMse;
 	while(cnt_times--)
