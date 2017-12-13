@@ -17,7 +17,10 @@ vector<double> Wj;
 vector<vector<double>> X;
 //训练集的真实结果 
 vector<double> Y;
+vector<vector<double>> V_X;
+vector<double> V_Y;
 vector<vector<double>> Train;
+vector<vector<double>> Validation;
 double Step;
 //层数
 int cnt_layer; 
@@ -37,11 +40,17 @@ double stringToNum(string str)
     return num;      
 }  
 
-double Sigmoid(double x)
+/*double Sigmoid(double x)
 {
 	double result = (double) 1 / (1 + exp(-x));
 	return result;
 }
+
+double DerivativeOfSig(double x)
+{
+	double result = (double) x*(1 - x);
+	return result;	
+}*/
 
 double Relu(double x)
 {
@@ -62,12 +71,6 @@ double DerivativeOfRelu(double x)
 	 	return relu_a;
 }
 
-double DerivativeOfSig(double x)
-{
-	double result = (double) Sigmoid(x) * (1 - Sigmoid(x));
-	return result;	
-}
-
 void DynamicStep()
 {
 /*	if(Step > 0.1)
@@ -75,7 +78,7 @@ void DynamicStep()
 	else if(Step > 0.01)
 		Step *= 0.5;
 	else */
-		Step *= 0.9999;
+		Step *= 0.99999;
 } 
 
 void DynamicBatch()
@@ -84,9 +87,10 @@ void DynamicBatch()
 		cnt_batch *= 2;
 }
 
-void Input()
+vector<vector<double>> Input(string filePath)
 {
-	ifstream f("C:/Users/Yuying/Desktop/train.csv");   
+	vector<vector<double>> DataSet;
+	ifstream f(filePath);   
     string line; 
 	bool flag = 0;
 	
@@ -123,11 +127,22 @@ void Input()
 				else
 					fields.push_back(stringToNum(field));
 				
-			}
-			Y.push_back(fields[fields.size() - 1]);      
-        	Train.push_back(fields);
+			}     
+        	DataSet.push_back(fields);
 		} 
 	}
+	return DataSet;
+//	cout << DataSet.size() << endl;
+}
+
+vector<double> GetInputY(vector<vector<double>> DataSet)
+{
+	vector<double> y;
+	for(int i = 0; i < DataSet.size(); i++)
+	{
+		y.push_back(DataSet[i][DataSet[0].size()-1]);
+	}
+	return y;
 }
 
 void Init()
@@ -150,6 +165,21 @@ void Init()
 				x.push_back(Train[i][j - 1]);
 		}
 		X.push_back(x);
+	}
+	
+//	cout << Train.size() << endl;
+	
+	for(int i = 0; i < Validation.size(); i++)
+	{
+		vector<double> v;
+		for(int j = 0; j < Validation[i].size(); j++)
+		{
+			if(j == 0)
+				v.push_back(1);
+			else
+				v.push_back(Validation[i][j - 1]);
+		}
+		V_X.push_back(v);
 	}
 	
 	srand(time(NULL));
@@ -177,30 +207,31 @@ void Init()
 }
 
 //数据预处理
-void DealWithData()
+vector<vector<double>> DealWithData(vector<vector<double>> DataSet)
 {
-	for(int i = 0; i < X[0].size(); i++)
+	for(int i = 0; i < DataSet[0].size(); i++)
 	{
 		double min_num = 1000000;
-		double max_num = X[0][i];
-		for(int j = 0; j < X.size(); j++)
+		double max_num = DataSet[0][i];
+		for(int j = 0; j < DataSet.size(); j++)
 		{
-			if(X[j][i] > max_num)
-				max_num = X[j][i];
-			else if(X[j][i] < min_num)
-				min_num = X[j][i];
+			if(DataSet[j][i] > max_num)
+				max_num = DataSet[j][i];
+			else if(DataSet[j][i] < min_num)
+				min_num = DataSet[j][i];
 		}
 		if((max_num - min_num) != 0)
 		{
-			for(int j = 0; j < X.size(); j++)
+			for(int j = 0; j < DataSet.size(); j++)
 			{		
-				X[j][i] = (X[j][i] - min_num) / (max_num - min_num);
+				DataSet[j][i] = (DataSet[j][i] - min_num) / (max_num - min_num);
 			}
 		}
 	}
+	return DataSet;
 } 
 
-vector<double> GetInH(int n)
+vector<double> GetInH(int n, vector<vector<double>> DataSet)
 {
 	vector<double> InH;
 	
@@ -210,9 +241,9 @@ vector<double> GetInH(int n)
 	for(int i = 0; i < cnt_hidden_node - 1; i++)
 	{
 		double temp = 0;
-		for(int k = 0; k < X[n].size(); k++)
+		for(int k = 0; k < DataSet[n].size(); k++)
 		{
-			temp += X[n][k] * Wij[k][i];
+			temp += DataSet[n][k] * Wij[k][i];
 		//	cout << "inh" << X[n][k] * Wij[k][i] << endl;
 		}
 	//	cout << "InH " << temp << endl;
@@ -227,6 +258,7 @@ vector<double> GetOutH(vector<double> InH)
 	for(int i = 0; i < InH.size(); i++)
 	{
 		OutH.push_back(Relu(InH[i]));
+	//	OutH.push_back(Sigmoid(InH[i]));
 	/*	cout << "In " <<  InH[i] << endl;*/
 	//	cout << "Out " << Sigmoid(InH[i]) << endl; 
 	}
@@ -246,12 +278,12 @@ double GetPreY(vector<double> OutH)
 	return y;
 }
 
-vector<double> GetAllY()
+vector<double> GetAllY(vector<vector<double>> DataSet)
 {
 	vector<double> preY;
-	for(int i = 0; i < Y.size(); i++)
+	for(int i = 0; i < DataSet.size(); i++)
 	{
-		vector<double> InH = GetInH(i);
+		vector<double> InH = GetInH(i, DataSet);
 		vector<double> OutH = GetOutH(InH);
 		double y = GetPreY(OutH);
 		preY.push_back(y);
@@ -273,6 +305,7 @@ vector<double> GetAj(int n, double a0, vector<double> OutH)
 	for(int j = 1; j < OutH.size(); j++)
 	{
 		double a = a0 * Wj[j] * DerivativeOfRelu(OutH[j]);
+	//	double a = a0 * Wj[j] * DerivativeOfSig(OutH[j]);
 		aj.push_back(a);
 	/*	cout << a << endl;
 		cout << a0 << endl;
@@ -301,7 +334,7 @@ vector<vector<double>> GetCostOfWij()
     for(int i = 0; i < cnt_batch; i++)
     {
     	int n = rand()%Y.size();
-    	vector<double> InH = GetInH(n);
+    	vector<double> InH = GetInH(n, X);
 		vector<double> OutH = GetOutH(InH);
 		double y = GetPreY(OutH);
 		double a0 = GetA0(n, y);
@@ -333,7 +366,7 @@ vector<double> GetCostOfWj()
     for(int i = 0; i < cnt_batch; i++)
     {
     	int n = rand()%Y.size();
-    	vector<double> InH = GetInH(n);
+    	vector<double> InH = GetInH(n, X);
 		vector<double> OutH = GetOutH(InH);
 		double y = GetPreY(OutH);
 		double a0 = GetA0(n, y);
@@ -367,13 +400,13 @@ void GetNewW(vector<vector<double>> CostOfWij, vector<double> CostOfWj)
 	}
 } 
 
-double MSE()
+double MSE(vector<vector<double>> DataSet, vector<double> DataY)
 {
 	double result = 0;
-	vector<double> pre_Y = GetAllY();
+	vector<double> pre_Y = GetAllY(DataSet);
 	for(int i = 0; i < pre_Y.size(); i++)
 	{
-		result += (pre_Y[i] - Y[i]) * (pre_Y[i] - Y[i]);
+		result += (pre_Y[i] - DataY[i]) * (pre_Y[i] - DataY[i]);
 	//	cout << pre_Y[i] << endl;
 	}
 	result = (double) result / Y.size();
@@ -382,9 +415,19 @@ double MSE()
 
 int main()
 {
-	Input();
+	string trainPath = "C:/Users/Yuying/Desktop/train.csv";
+	string validationPath = "C:/Users/Yuying/Desktop/test.csv";
+	Train = Input(trainPath);
+	Validation = Input(validationPath);
+	Y = GetInputY(Train);
+//	V_Y = GetInputY(Validation);
 	Init();
-	DealWithData();
+	X = DealWithData(X);
+	V_X = DealWithData(V_X);
+	
+//	cout << V_X.size() << endl;
+	
+//	cout << V_X.size() << endl;
 	
 	vector<double> getMse;
 	while(cnt_times--)
@@ -392,23 +435,26 @@ int main()
 		vector<double> CostOfWj = GetCostOfWj();
 		vector<vector<double>> CostOfWij = GetCostOfWij();
 		GetNewW(CostOfWij, CostOfWj);
-		double mse = MSE();
-		getMse.push_back(mse);
+	//	double mse = MSE(V_X, V_Y);
+	//	getMse.push_back(mse); 
 		DynamicStep();
 		DynamicBatch();
 	}
-	ofstream outf; 
-	outf.open("C:/Users/Yuying/Desktop/test_result.txt");
+	
+	cout << MSE(X, Y) << endl;
+	
+/*	ofstream outf; 
+	outf.open("C:/Users/Yuying/Desktop/V_MSE_Sig.txt");
 	for(int i = 0; i < getMse.size(); i++)
 	{
 		outf << getMse[i] << endl;
-	}
+	}*/
 	
-	vector<double> MyY = GetAllY();
+	vector<double> MyY = GetAllY(V_X);
+	ofstream outf_;
+	outf_.open("C:/Users/Yuying/Desktop/Prediction.txt");
 	for(int i = 0; i < MyY.size(); i++)
-		cout << MyY[i] << endl;
-	
-	cout << MSE() << endl;
+		outf_ << MyY[i] << endl;
 	
 /*	for(int i = 0; i < Wj.size(); i++)
 		cout << Wj[i] << " ";
