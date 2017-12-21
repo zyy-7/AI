@@ -148,7 +148,7 @@ vector<double> GetInputY(vector<vector<double>> DataSet)
 void Init()
 {
 	cnt_layer = 2;
-	cnt_times = 10000;
+	cnt_times = 2000;
 	cnt_hidden_node = 20;
 //	Step = 0.7;
 	Step = 0.001;
@@ -182,7 +182,7 @@ void Init()
 		V_X.push_back(v);
 	}
 	
-	srand(time(NULL));
+/*	srand(time(NULL));
 	for(int i = 0; i < X[0].size(); i++)
 	{
 		vector<double> w;
@@ -203,7 +203,7 @@ void Init()
 		double p = rand()%(N+1)/(double)(N+1);
 		p = (double) p*2 - 1;
 		Wj.push_back(p);
-	}
+	}*/
 }
 
 //数据预处理
@@ -413,6 +413,40 @@ double MSE(vector<vector<double>> DataSet, vector<double> DataY)
 	return result;
 }
 
+void inputWj()
+{
+	ifstream f("C:/Users/Yuying/Desktop/Wj.csv");   
+    string line; 
+
+	while(getline(f, line))     
+    {
+        istringstream sin(line);   
+        string field;  
+    //    vector<double> fields;   
+        while(getline(sin, field, ','))  
+        	Wj.push_back(stringToNum(field));
+	//	Y.push_back(fields[fields.size() - 1]);      
+     //   Train.push_back(fields);
+	}
+}
+
+void inputWij()
+{
+	ifstream f("C:/Users/Yuying/Desktop/Wij.csv");   
+    string line; 
+
+	while(getline(f, line))     
+    {
+        istringstream sin(line);   
+        string field;  
+        vector<double> fields;   
+        while(getline(sin, field, ','))  
+        	fields.push_back(stringToNum(field));
+	//	Y.push_back(fields[fields.size() - 1]);      
+        Wij.push_back(fields);
+	}
+}
+
 int main()
 {
 	string trainPath = "C:/Users/Yuying/Desktop/train.csv";
@@ -422,14 +456,17 @@ int main()
 	Y = GetInputY(Train);
 //	V_Y = GetInputY(Validation);
 	Init();
+	inputWj();
+	inputWij();
 	X = DealWithData(X);
 	V_X = DealWithData(V_X);
 	
-//	cout << V_X.size() << endl;
 	
 //	cout << V_X.size() << endl;
 	
-	vector<double> getMse;
+//	cout << V_X.size() << endl;
+	
+/*	vector<double> getMse;
 	while(cnt_times--)
 	{
 		vector<double> CostOfWj = GetCostOfWj();
@@ -439,6 +476,7 @@ int main()
 	//	getMse.push_back(mse); 
 		DynamicStep();
 		DynamicBatch();
+		cout << cnt_times << endl;
 	}
 	
 	cout << MSE(X, Y) << endl;
@@ -452,7 +490,7 @@ int main()
 	
 	vector<double> MyY = GetAllY(V_X);
 	ofstream outf_;
-	outf_.open("C:/Users/Yuying/Desktop/Prediction.txt");
+	outf_.open("C:/Users/Yuying/Desktop/Prediction1.0.txt");
 	for(int i = 0; i < MyY.size(); i++)
 		outf_ << MyY[i] << endl;
 	

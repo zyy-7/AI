@@ -1,2 +1,17 @@
 
 BPNN.exe
+AI_final_proj/.vs/AI_final_proj/v14/.suo
+AI_final_proj/AI_final_proj.sln
+AI_final_proj/AI_final_proj.VC.db
+AI_final_proj/AI_final_proj/AI_final_proj.vcxproj
+AI_final_proj/Debug/AI_final_proj.pdb
+AI_final_proj/AI_final_proj/AI_final_proj.vcxproj.filters
+AI_final_proj/AI_final_proj/Debug/AI_final_proj.log
+AI_final_proj/AI_final_proj/Debug/AI_final_proj.tlog/AI_final_proj.lastbuildstate
+AI_final_proj/AI_final_proj/Debug/AI_final_proj.tlog/CL.command.1.tlog
+*.tlog
+*.obj
+*.idb
+*.pdb
+AI_final_proj/Debug/AI_final_proj.exe
+AI_final_proj/Debug/AI_final_proj.ilk
