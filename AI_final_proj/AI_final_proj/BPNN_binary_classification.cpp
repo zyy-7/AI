@@ -81,7 +81,7 @@ double DerivativeOfSigmoid(double num) {
 
 //对数据进行初始化
 void Init(){
-	Step = 0.00001;
+	Step = 0.05;
 	cnt_hidden_node = 20;
 	cnt_times = 1000;
 	cnt_batch = 1;
@@ -101,6 +101,7 @@ void InputTrain(){
 		vector<double> fields;
 		int cnt = 0;
 		while (getline(sin, field, ',')) {
+			fields.push_back(double(1));
 			if (cnt == 1) {
 				double num;
 				if (field[field.length() - 1] == 'A')
@@ -196,7 +197,7 @@ vector<vector<double>> DealWithData(vector<vector<double>> DataSet){
 	return DataSet;
 }
 
-//初始化权重向量（0-1之间）
+//初始化权重向量
 void InitW() {
 	srand(time(NULL));
 	for (int i = 0; i < Train[0].size(); i++)
@@ -204,7 +205,9 @@ void InitW() {
 		vector<double> w;
 		for (int j = 0; j < cnt_hidden_node - 1; j++)
 		{
-			double p = rand() % (N + 1) / (double)(N + 1);
+			double p =((double)rand()) / RAND_MAX;
+	//		double p = rand() % 100 / 101 - 0.10000;
+			p = 2.00000 * p - 1.00000;
 			w.push_back(p);
 		}
 		Wij.push_back(w);
@@ -212,75 +215,102 @@ void InitW() {
 
 	for (int i = 0; i < cnt_hidden_node; i++)
 	{
-		double p = rand() % (N + 1) / (double)(N + 1);
+		double p = ((double)rand()) / RAND_MAX;
+	//	double p = rand() % 100 / (double)101 - 0.10000;
+		p = 20.00000 * p - 10.00000;
 		Wj.push_back(p);
 	}
 }
 
-//隐藏层的输入
-vector<double> getInH(int index) {
-	vector<double> InH;
+//隐藏层的输出
+vector<double> getOutH(int index) {
+	vector<double> OutH;
 
 	//h0
-	srand(time(NULL));
-	double p = rand() % (N + 1) / (double)(N + 1);
-	InH.push_back(p);
+	OutH.push_back(Sigmoid((double)1));
 
 	for (int i = 0; i < cnt_hidden_node - 1; i++) {
 		double inh = 0;
 		for (int j = 0; j < Train[index].size(); j++) {
 			inh += Train[index][j] * Wij[j][i];
 		}
-		InH.push_back(inh);
-	}
-
-	return InH;
-}
-
-//隐藏层的输出
-vector<double> getOutH(vector<double> InH) {
-	vector<double> OutH;
-
-	for (int i = 0; i < InH.size(); i++) {
-		double outh = Relu(InH[i]);
-		OutH.push_back(outh);
+		OutH.push_back(Sigmoid(inh));
 	}
 
 	return OutH;
 }
 
-//输出层的输入
-vector<double> getInY(vector<double> OutH) {
-	vector<double> InY;
-
-	for (int i = 0; i < OutH.size(); i++) {
-		double iny = OutH[i] * Wj[i];
-		InY.push_back(iny);
-	}
-
-	return InY;
-}
-
 //输出层的输出
-vector<double> getOutY(vector<double> InY) {
-	vector<double> OutY;
-
-	for (int i = 0; i < InY.size(); i++) {
-		double outy = Sigmoid(InY[i]);
-		OutY.push_back(outy);
+double getOutY(vector<double> OutH) {
+	double InY = 0;
+	for (int i = 0; i < OutH.size(); i++) {
+		InY += OutH[i] * Wj[i];
 	}
-
+	double OutY = Sigmoid(InY);
+//	cout << OutY << endl;
 	return OutY;
 }
 
-//前向传递
-vector<double> Forward(int index) {
-	vector<double> InH = getInH(index);
-	vector<double> OutH = getOutH(InH);
-	vector<double> InY = getInY(OutH);
-	vector<double> OutY = getOutY(InY);
+//更新权重向量W
+void RefreshW() {
+	vector<double> CostWj;
+	for (int i = 0; i < Wj.size(); i++) {
+		CostWj.push_back((double)0);
+	}
 
-	return OutY;
+	vector<vector<double>> CostWij;
+	for (int i = 0; i < Wij.size(); i++) {
+		vector<double> costwij;
+		for (int j = 0; j < Wij[i].size(); j++) {
+			costwij.push_back((double)0);
+		}
+		CostWij.push_back(costwij);
+	}
+
+	srand(time(NULL));
+	for (int i = 0; i < cnt_batch; i++) {
+		int index = rand() % Train.size();
+		vector<double> OutH = getOutH(index);
+		double OutY = getOutY(OutH);
+
+		double temp = (OutY - Train_Result[index]) * DerivativeOfSigmoid(OutY) / (double)cnt_batch;
+		for (int j = 0; j < Wj.size(); j++) {
+			CostWj[j] += temp * OutH[i];
+		}
+
+		for (int j = 0; j < Wij.size(); j++) {
+			for (int k = 0; k < Wij[j].size(); k++) {
+				CostWij[j][k] += temp * Wj[k] * DerivativeOfSigmoid(OutH[k + 1]) * Train[index][j];
+			}
+		}
+	}
+
+	//更新Wj
+	for (int i = 0; i < Wj.size(); i++) {
+		Wj[i] -= Step * CostWj[i];
+	}
+
+	//更新Wij
+	for (int i = 0; i < Wij.size(); i++) {
+		for (int j = 0; j < Wij[i].size(); j++) {
+			Wij[i][j] -= CostWij[i][j];
+		}
+	}
+}
+
+void getPredictResult() {
+	for (int i = 0; i < Test.size(); i++) {
+		vector<double> OutH = getOutH(i);
+		double y = getOutY(OutH);
+		cout << y << endl;
+		if (y > 0.5)
+			Predict_Result.push_back(1);
+		else
+			Predict_Result.push_back(0);
+
+	/*	for (int i = 0; i < OutH.size(); i++)
+			cout << OutH[i] << endl;*/
+	}
 }
 
 int main(){
@@ -290,6 +320,57 @@ int main(){
 	Train = DealWithData(Train);
 	Test = DealWithData(Test);
 	InitW();
+	
+	for (int i = 0; i < Wj.size(); i++) {
+		cout << Wj[i] << " ";
+	}
+	cout << endl;
+
+	for (int i = 0; i < Wij.size(); i++) {
+		for (int j = 0; j < Wij[i].size(); j++) {
+			cout << Wij[i][j] << " ";
+		}
+		cout << endl;
+	}
+
+	cout << endl << endl;
+
+	//进行迭代，更新W
+	for (int i = 0; i < cnt_times; i++) {
+		RefreshW();
+	}
+
+	getPredictResult();
+
+	getOutH(0);
+
+	ofstream outf;
+	outf.open("C:/Users/Yuying/Desktop/test_result.txt");
+	int cnt_right = 0;
+	if (!isTest) {
+		for (int i = 0; i < Predict_Result.size(); i++) {
+			outf << Predict_Result[i] << endl;
+			if (Predict_Result[i] == Validation_Result[i])
+				cnt_right++;
+		}
+	}
+
+	double right = (double)cnt_right / Predict_Result.size();
+
+	cout << right << endl;
+
+	for (int i = 0; i < Wj.size(); i++) {
+		cout << Wj[i] << " ";
+	}
+	cout << endl;
+
+	for (int i = 0; i < Wij.size(); i++) {
+		for (int j = 0; j < Wij[i].size(); j++) {
+			cout << Wij[i][j] << " ";
+		}
+		cout << endl;
+	}
+
 
 	/*for (int i = 0; i < Wj.size(); i++)
 		cout << Wj[i] << " ";
