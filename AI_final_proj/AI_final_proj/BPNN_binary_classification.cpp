@@ -13,13 +13,13 @@ using namespace std;
 //训练集数据（不包括结果）
 vector<vector<double>> Train;
 //训练集结果
-vector<int> Train_Result;
+vector<double> Train_Result;
 //验证集数据/测试集数据
 vector<vector<double>> Test;
 //验证集结果
-vector<int> Validation_Result;
+vector<double> Validation_Result;
 //预测结果
-vector<int> Predict_Result;
+vector<double> Predict_Result;
 //权重向量Wij（输入层到隐藏层）
 vector<vector<double>> Wij;
 //权重向量Wj（隐藏层到输出层）
@@ -67,6 +67,18 @@ double DerivativeOfRelu(double x)
 		return (double)0;
 }
 
+//Sigmoid
+double Sigmoid(double num) {
+	double result = (double)1 / (1 + exp(-num));
+	return result;
+}
+
+//Sigmoid函数的导数
+double DerivativeOfSigmoid(double num) {
+	double result = (double)num * (1 - num);
+	return result;
+}
+
 //对数据进行初始化
 void Init(){
 	Step = 0.00001;
@@ -106,7 +118,7 @@ void InputTrain(){
 			}
 			cnt++;
 		}	
-		Train_Result.push_back(int(fields[fields.size() - 1]));
+		Train_Result.push_back(fields[fields.size() - 1]);
 		fields.pop_back();
 		Train.push_back(fields);
 	}
@@ -147,7 +159,7 @@ void InputTest(bool isTest){
 			cnt++;
 		}
 		if (!isTest) {
-			Validation_Result.push_back(int(fields[fields.size() - 1]));
+			Validation_Result.push_back(fields[fields.size() - 1]);
 			fields.pop_back();
 			Test.push_back(fields);
 		}
@@ -206,8 +218,69 @@ void InitW() {
 }
 
 //隐藏层的输入
-vector<double> InH(int index) {
-	
+vector<double> getInH(int index) {
+	vector<double> InH;
+
+	//h0
+	srand(time(NULL));
+	double p = rand() % (N + 1) / (double)(N + 1);
+	InH.push_back(p);
+
+	for (int i = 0; i < cnt_hidden_node - 1; i++) {
+		double inh = 0;
+		for (int j = 0; j < Train[index].size(); j++) {
+			inh += Train[index][j] * Wij[j][i];
+		}
+		InH.push_back(inh);
+	}
+
+	return InH;
+}
+
+//隐藏层的输出
+vector<double> getOutH(vector<double> InH) {
+	vector<double> OutH;
+
+	for (int i = 0; i < InH.size(); i++) {
+		double outh = Relu(InH[i]);
+		OutH.push_back(outh);
+	}
+
+	return OutH;
+}
+
+//输出层的输入
+vector<double> getInY(vector<double> OutH) {
+	vector<double> InY;
+
+	for (int i = 0; i < OutH.size(); i++) {
+		double iny = OutH[i] * Wj[i];
+		InY.push_back(iny);
+	}
+
+	return InY;
+}
+
+//输出层的输出
+vector<double> getOutY(vector<double> InY) {
+	vector<double> OutY;
+
+	for (int i = 0; i < InY.size(); i++) {
+		double outy = Sigmoid(InY[i]);
+		OutY.push_back(outy);
+	}
+
+	return OutY;
+}
+
+//前向传递
+vector<double> Forward(int index) {
+	vector<double> InH = getInH(index);
+	vector<double> OutH = getOutH(InH);
+	vector<double> InY = getInY(OutH);
+	vector<double> OutY = getOutY(InY);
+
+	return OutY;
 }
 
 int main(){
