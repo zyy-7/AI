@@ -81,7 +81,7 @@ double DerivativeOfSigmoid(double num) {
 
 //对数据进行初始化
 void Init(){
-	Step = 0.05;
+	Step = 0.00001;
 	cnt_hidden_node = 20;
 	cnt_times = 1000;
 	cnt_batch = 1;
@@ -99,9 +99,9 @@ void InputTrain(){
 		istringstream sin(line);
 		string field;
 		vector<double> fields;
+		fields.push_back(double(1));
 		int cnt = 0;
 		while (getline(sin, field, ',')) {
-			fields.push_back(double(1));
 			if (cnt == 1) {
 				double num;
 				if (field[field.length() - 1] == 'A')
@@ -140,6 +140,7 @@ void InputTest(bool isTest){
 		istringstream sin(line);
 		string field;
 		vector<double> fields;
+		fields.push_back(double(1));
 		int cnt = 0;
 		while (getline(sin, field, ',')) {
 			if (cnt == 1) {
@@ -217,7 +218,7 @@ void InitW() {
 	{
 		double p = ((double)rand()) / RAND_MAX;
 	//	double p = rand() % 100 / (double)101 - 0.10000;
-		p = 20.00000 * p - 10.00000;
+		p = 2.00000 * p - 1.00000;
 		Wj.push_back(p);
 	}
 }
@@ -227,7 +228,7 @@ vector<double> getOutH(int index) {
 	vector<double> OutH;
 
 	//h0
-	OutH.push_back(Sigmoid((double)1));
+	OutH.push_back(Sigmoid(1));
 
 	for (int i = 0; i < cnt_hidden_node - 1; i++) {
 		double inh = 0;
@@ -255,14 +256,14 @@ double getOutY(vector<double> OutH) {
 void RefreshW() {
 	vector<double> CostWj;
 	for (int i = 0; i < Wj.size(); i++) {
-		CostWj.push_back((double)0);
+		CostWj.push_back(0);
 	}
 
 	vector<vector<double>> CostWij;
 	for (int i = 0; i < Wij.size(); i++) {
 		vector<double> costwij;
 		for (int j = 0; j < Wij[i].size(); j++) {
-			costwij.push_back((double)0);
+			costwij.push_back(0);
 		}
 		CostWij.push_back(costwij);
 	}
@@ -274,43 +275,54 @@ void RefreshW() {
 		double OutY = getOutY(OutH);
 
 		double temp = (OutY - Train_Result[index]) * DerivativeOfSigmoid(OutY) / (double)cnt_batch;
+	//	cout << (OutY - Train_Result[index]) << endl;
+	//	cout << temp << endl;
 		for (int j = 0; j < Wj.size(); j++) {
-			CostWj[j] += temp * OutH[i];
+			CostWj[j] += temp * OutH[j];
+	//		cout << "CostWj: " << CostWj[j] << " ";
 		}
+	//	cout << endl;
 
 		for (int j = 0; j < Wij.size(); j++) {
 			for (int k = 0; k < Wij[j].size(); k++) {
-				CostWij[j][k] += temp * Wj[k] * DerivativeOfSigmoid(OutH[k + 1]) * Train[index][j];
+				CostWij[j][k] += temp * Wj[k + 1] * DerivativeOfSigmoid(OutH[k + 1]) * Train[index][j];
+		//		cout << "CostWij: " << CostWij[j][k] << " ";
 			}
+	//		cout << endl;
 		}
 	}
 
 	//更新Wj
 	for (int i = 0; i < Wj.size(); i++) {
-		Wj[i] -= Step * CostWj[i];
+		Wj[i] += Step * CostWj[i];
 	}
 
 	//更新Wij
 	for (int i = 0; i < Wij.size(); i++) {
 		for (int j = 0; j < Wij[i].size(); j++) {
-			Wij[i][j] -= CostWij[i][j];
+			Wij[i][j] += Step * CostWij[i][j];
 		}
 	}
 }
 
 void getPredictResult() {
+	double mse = 0;
+	if (Predict_Result.size() != 0)
+		Predict_Result.clear();
 	for (int i = 0; i < Test.size(); i++) {
 		vector<double> OutH = getOutH(i);
 		double y = getOutY(OutH);
-		cout << y << endl;
+		mse += (y - Validation_Result[i]) * (y - Validation_Result[i]);
+		//cout << y << endl;
 		if (y > 0.5)
 			Predict_Result.push_back(1);
 		else
 			Predict_Result.push_back(0);
 
-	/*	for (int i = 0; i < OutH.size(); i++)
-			cout << OutH[i] << endl;*/
+		/*for (int j = 0; j < OutH.size(); j++)
+			cout << OutH[j] << endl;*/
 	}
+	//cout << mse << endl;
 }
 
 int main(){
@@ -321,7 +333,9 @@ int main(){
 	Test = DealWithData(Test);
 	InitW();
 	
-	for (int i = 0; i < Wj.size(); i++) {
+//	cout << Test[0].size() << endl;
+
+/*	for (int i = 0; i < Wj.size(); i++) {
 		cout << Wj[i] << " ";
 	}
 	cout << endl;
@@ -333,7 +347,7 @@ int main(){
 		cout << endl;
 	}
 
-	cout << endl << endl;
+	cout << endl << endl;*/
 
 	//进行迭代，更新W
 	for (int i = 0; i < cnt_times; i++) {
@@ -342,9 +356,7 @@ int main(){
 
 	getPredictResult();
 
-	getOutH(0);
-
-	ofstream outf;
+/*	ofstream outf;
 	outf.open("C:/Users/Yuying/Desktop/test_result.txt");
 	int cnt_right = 0;
 	if (!isTest) {
@@ -357,9 +369,9 @@ int main(){
 
 	double right = (double)cnt_right / Predict_Result.size();
 
-	cout << right << endl;
+	cout << right << endl;*/
 
-	for (int i = 0; i < Wj.size(); i++) {
+/*	for (int i = 0; i < Wj.size(); i++) {
 		cout << Wj[i] << " ";
 	}
 	cout << endl;
@@ -369,7 +381,7 @@ int main(){
 			cout << Wij[i][j] << " ";
 		}
 		cout << endl;
-	}
+	}*/
 
 
 	/*for (int i = 0; i < Wj.size(); i++)
