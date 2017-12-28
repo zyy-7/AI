@@ -51,11 +51,22 @@ double Sigmoid(double num) {
 	return result;
 }
 
+//动态学习率
+void DynamicStep() {
+	Step *= 0.99999;
+} 
+
+//动态批
+void DynamicBatch() {
+	if(cnt_batch < 200)
+		cnt_batch *= 2;
+} 
+
 //对数据进行初始化
 void Init(){
-	Step = 0.0001;
-	cnt_times = 10000;
-	cnt_batch = 10;
+	Step = 1;
+	cnt_times = 100000;
+	cnt_batch = 1;
 	isTest = 0;
 	TrainPath = "C:/Users/Yuying/Desktop/train.csv";
 	ValidationPath = "C:/Users/Yuying/Desktop/validation.csv";
@@ -171,12 +182,13 @@ vector<vector<double>> DealWithData(vector<vector<double>> DataSet){
 
 //初始化权重向量
 void InitW() {
-	srand(time(NULL));
+//	srand(time(NULL));
 
 	for (int i = 0; i < Train[0].size(); i++) {
-		double p = ((double)rand()) / RAND_MAX;
+		double p = 1;
+	//	double p = ((double)rand()) / RAND_MAX;
 	//	double p = rand() % 100 / (double)101 - 0.10000;
-		p = 2.00000 * p - 1.00000;
+	//	p = 2.00000 * p - 1.00000;
 		W.push_back(p);
 	}
 }
@@ -214,35 +226,20 @@ void GetNewW() {
 
 //根据所得的W预测测试集的结果
 void GetResult() {
+	if(!Predict_Result.empty())
+		Predict_Result.clear();
 	for(int i = 0; i < Test.size(); i++) {
 		double s = 0;
 		for(int j = 0; j < W.size(); j++)
 			s += Test[i][j] * W[j];
 		double p = Sigmoid(s);
 		
-		cout << p << endl;
+	//	cout << p << endl;
 		if(p >= 0.5)
 			Predict_Result.push_back(1);
 		else
 			Predict_Result.push_back(0);
 	}
-}
-
-int main(){
-	Init();
-	InputTrain();
-	InputTest(isTest);
-	Train = DealWithData(Train);
-	Test = DealWithData(Test);
-	InitW();
-	
-//	GetResult();
-	
-	for(int i = 0; i < cnt_times; i++) {
-		GetNewW();
-	}
-	
-	GetResult();
 	
 	int cnt_right = 0;
 	for(int i = 0; i < Test.size(); i++) {
@@ -253,6 +250,57 @@ int main(){
 	double right = (double) cnt_right / Test.size();
 	
 	cout << right << endl;
+	
+/*	for(int i = 0; i < W.size(); i++)
+		cout << W[i] << " ";
+	cout << endl; */
+	
+/*	if(!Predict_Result.empty())
+		Predict_Result.clear();
+	for(int i = 0; i < Train.size(); i++) {
+		double s = 0;
+		for(int j = 0; j < W.size(); j++)
+			s += Train[i][j] * W[j];
+		double p = Sigmoid(s);
+		
+	//	cout << p << endl;
+		if(p >= 0.5)
+			Predict_Result.push_back(1);
+		else
+			Predict_Result.push_back(0);
+	}
+	
+	int cnt_right = 0;
+	for(int i = 0; i < Test.size(); i++) {
+		if(Predict_Result[i] == Train_Result[i])
+			cnt_right++;
+	}
+	
+	double right = (double) cnt_right / Test.size();
+	
+	cout << right << endl;*/
+}
+
+int main(){
+	Init();
+	InputTrain();
+	InputTest(isTest);
+	Train = DealWithData(Train);
+	Test = DealWithData(Test);
+	
+	InitW();
+	for(int i = 0; i < cnt_times; i++) {
+		GetNewW();
+		if ((i + 1) % 100 == 0) {
+			DynamicBatch();
+			DynamicStep();
+		}
+			
+		if ((i + 1) % 100 == 0){
+			cout << i + 1 << ": ";
+			GetResult();
+		}	
+	}
 	
 	return 0;
 }
