@@ -32,12 +32,20 @@ string TestPath;
 bool isTest;
 
 //将字符串转化为浮点数
-double stringToNum(string str){
+double stringToNum(string str) {
 	istringstream iss(str);
 	double num;
 	iss >> num;
 	return num;
 }
+
+string IntToString(int num) {
+	stringstream ss;
+	ss << num; 
+	string str = ss.str();
+	return str;
+}
+
 
 //map按value排序 
 bool comp_by_value(pair<int, double> &p1, pair<int, double> &p2) {
@@ -53,8 +61,8 @@ struct CompByValue {
 //对数据进行初始化
 void Init(){
 	K = 1; 
-	isTest = 0;
-	TrainPath = "C:/Users/Yuying/Desktop/train.csv";
+	isTest = 1;
+	TrainPath = "C:/Users/Yuying/Desktop/Project/binary_classification/train.csv";
 	ValidationPath = "C:/Users/Yuying/Desktop/validation.csv";
 	TestPath = "C:/Users/Yuying/Desktop/test.csv";
 }
@@ -163,13 +171,14 @@ vector<vector<double>> DealWithData(vector<vector<double>> DataSet){
 				DataSet[k][i] /= max_num;
 		}
 	}
+	 
 	return DataSet;
 }
 
 vector<double> getPredictResult() {
 	vector<double> PredictResult;
 	for (int i = 0; i < Test.size(); i++) {
-		cout << i << endl;
+	//	cout << i << endl;
 		double result = 0;
 		map<int, double> distance;
 		for (int j = 0; j < Train.size(); j++) {
@@ -208,19 +217,30 @@ int main(){
 	InputTest(isTest);
 	//Train = DealWithData(Train);
 	//Test = DealWithData(Test);
-	Predict_Result = getPredictResult();
 	
-	int cnt_right = 0;
-	for(int i = 0; i < Predict_Result.size(); i++) {
+	for(int j = 0; j < 1; j++) {
+	//	K = 10*(j + 1);
+		Predict_Result = getPredictResult();
+		string v = IntToString(10*(j + 1));
+		string filename = "predict" + v + ".csv";
+		ofstream out(filename);
+		for (int i = 0; i < Predict_Result.size(); i++) {
+			out << Predict_Result[i] << endl;
+		}
+		out.close();		
+	}
+	
+	
+	
+/*	int cnt_right = 0;
+	for (int i = 0; i < Predict_Result.size(); i++) {
 		if(Predict_Result[i] == Validation_Result[i])
 			cnt_right++;
 	}
 	
 	double right = (double) cnt_right / Predict_Result.size();
 	
-	cout << right << endl;
-	
-	
+	cout << right << endl;*/
 	
 	return 0;
 }
