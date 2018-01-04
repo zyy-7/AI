@@ -20,8 +20,12 @@ vector<vector<double>> Test;
 vector<double> Validation_Result;
 //预测结果
 vector<double> Predict_Result;
+//样本权重
+vector<double> U; 
 //权重向量 
 vector<double> W;
+//最好的权重向量
+vector<double> best_W; 
 //学习率
 double Step;
 //迭代次数
@@ -36,6 +40,18 @@ string ValidationPath;
 string TestPath;
 //判断是读入验证集还是测试集
 bool isTest;
+//每个子模型的投票权 
+vector<double> ModelWeight; 
+//当前训练集中所有样本的编号 
+vector<int> NowTrain;
+//子模型的个数
+int cnt_model; 
+//当前权重所得到的正确率
+double nowRight;  
+//训练集的预测结果
+vector<double> TrainPredictResult; 
+//记录所有子模型的预测结果
+vector<vector<double>> modelResult; 
 
 //将字符串转化为浮点数
 double stringToNum(string str){
@@ -48,6 +64,18 @@ double stringToNum(string str){
 //Sigmoid
 double Sigmoid(double num) {
 	double result = (double)1 / (1 + exp(-num));
+	return result;
+}
+
+//子模型对样本权重的影响 
+double TrainS(double e) {
+	double result = sqrt((1 - e) / e);
+	return result;
+} 
+
+//子模型的投票权 
+double ModelW(double e) {
+	double result = log(sqrt((1 - e) / e));
 	return result;
 }
 
@@ -65,8 +93,10 @@ void DynamicBatch() {
 //对数据进行初始化
 void Init(){
 	Step = 1;
-	cnt_times = 100000;
+	cnt_times = 10000;
 	cnt_batch = 1;
+	cnt_model = 10;
+	nowRight = 0;
 	isTest = 0;
 	TrainPath = "C:/Users/Yuying/Desktop/train.csv";
 	ValidationPath = "C:/Users/Yuying/Desktop/validation.csv";
@@ -180,16 +210,63 @@ vector<vector<double>> DealWithData(vector<vector<double>> DataSet){
 	return DataSet;
 }
 
+//初始化样本权重
+void InitU() {
+	double num = (double) 1 / Train.size();
+	for(int i = 0; i < Train.size(); i++) {
+		U.push_back(num);
+	}
+} 
+
+//根据错误率更新样本权重 
+void FreshU(double e) {
+	double s = TrainS(e);
+	for(int i = 0; i < NowTrain.size(); i++) {
+		if(TrainPredictResult[NowTrain[i]] == Train_Result[NowTrain[i]]) {
+			U[NowTrain[i]] /= s;
+		}
+		else {
+			U[NowTrain[i]] *= s;
+		}
+	}
+}
+
+//根据权重得到当前被选中样本的编号 
+void GetNowTrain(int index) {
+	if(!NowTrain.empty()) 
+		NowTrain.clear();
+	double uSum = 0;
+	for(int i = 0; i < U.size(); i++) {
+		uSum += U[i];
+	}
+	
+	double uAvg = (double) uSum / U.size();
+	for(int i = 0; i < U.size(); i++) {
+		if(U[i] > uAvg) {
+			NowTrain.push_back(i);
+		}
+		else if(index == 0) {
+			NowTrain.push_back(i);
+		}
+	}
+}
+
 //初始化权重向量
 void InitW() {
 //	srand(time(NULL));
-
+	if(!W.empty())
+		W.clear();
+	if(!best_W.empty()) {
+		best_W.clear();
+	}
+	
 	for (int i = 0; i < Train[0].size(); i++) {
 		double p = 1;
 	//	double p = ((double)rand()) / RAND_MAX;
 	//	double p = rand() % 100 / (double)101 - 0.10000;
 	//	p = 2.00000 * p - 1.00000;
 		W.push_back(p);
+		best_W.push_back(p);
 	}
 }
 
@@ -224,6 +301,26 @@ void GetNewW() {
 		W[i] -= Step * Cost[i] / double(cnt_batch);
 }
 
+void adaGetNewW() {
+	vector<double> Cost;
+	for (int i = 0; i < W.size(); i++) {
+		Cost.push_back(0);
+	}
+	
+	srand(time(NULL));
+	for (int i = 0; i < cnt_batch; i++) {
+		int randNum = rand() % NowTrain.size();
+		double s = GetNewS(NowTrain[randNum]);
+		for(int j = 0; j < W.size(); j++) {
+			double temp = Sigmoid(s);
+			Cost[j] += Train[NowTrain[randNum]][j] * (temp - Train_Result[NowTrain[randNum]]);
+		}
+	}
+	
+	for(int i = 0; i < W.size(); i++)
+		W[i] -= Step * Cost[i] / double(cnt_batch);
+}
+
 //根据所得的W预测测试集的结果
 void GetResult() {
 	if(!Predict_Result.empty())
@@ -249,18 +346,23 @@ void GetResult() {
 	
 	double right = (double) cnt_right / Test.size();
 	
-	cout << right << endl;
+//	cout << right << endl;
 	
-/*	for(int i = 0; i < W.size(); i++)
-		cout << W[i] << " ";
-	cout << endl; */
-	
-/*	if(!Predict_Result.empty())
+	if(right > nowRight) {
+		nowRight = right;
+		for(int i = 0; i < W.size(); i++) {
+			best_W[i] = W[i];
+		}
+	}
+}
+
+double GetBestResult() {
+	if(!Predict_Result.empty())
 		Predict_Result.clear();
-	for(int i = 0; i < Train.size(); i++) {
+	for(int i = 0; i < Test.size(); i++) {
 		double s = 0;
-		for(int j = 0; j < W.size(); j++)
-			s += Train[i][j] * W[j];
+		for(int j = 0; j < best_W.size(); j++)
+			s += Test[i][j] * best_W[j];
 		double p = Sigmoid(s);
 		
 	//	cout << p << endl;
@@ -272,13 +374,32 @@ void GetResult() {
 	
 	int cnt_right = 0;
 	for(int i = 0; i < Test.size(); i++) {
-		if(Predict_Result[i] == Train_Result[i])
+		if(Predict_Result[i] == Validation_Result[i])
 			cnt_right++;
 	}
 	
 	double right = (double) cnt_right / Test.size();
 	
-	cout << right << endl;*/
+	return right;
+}
+
+//根据求得的权重对训练集进行预测 
+void getPredictTrainResult() {
+	if(!TrainPredictResult.empty()) {
+		TrainPredictResult.clear(); 
+	}
+	for(int i = 0; i < Train.size(); i++) {
+		double s = 0;
+		for(int j = 0; j < best_W.size(); j++)
+			s += Train[i][j] * best_W[j];
+		double p = Sigmoid(s);
+		
+	//	cout << p << endl;
+		if(p >= 0.5)
+			TrainPredictResult.push_back(1);
+		else
+			TrainPredictResult.push_back(0);
+	}
 }
 
 int main(){
@@ -287,20 +408,64 @@ int main(){
 	InputTest(isTest);
 	Train = DealWithData(Train);
 	Test = DealWithData(Test);
+	InitU();
 	
-	InitW();
-	for(int i = 0; i < cnt_times; i++) {
-		GetNewW();
-		if ((i + 1) % 100 == 0) {
-			DynamicBatch();
-			DynamicStep();
-		}
-			
-		if ((i + 1) % 100 == 0){
-			cout << i + 1 << ": ";
+	for(int i = 0; i < cnt_model; i++) {
+		cout << i << endl;
+		Init();
+		InitW();
+		GetNowTrain(i);
+		
+		for(int i = 0; i < cnt_times; i++) {
+			adaGetNewW();
+			if ((i + 1) % 100 == 0) {
+				DynamicBatch();
+				DynamicStep();
+			}
+		
 			GetResult();
-		}	
+		}
+		
+		double r = GetBestResult();
+		getPredictTrainResult();
+		double wrong = (double) 1 - r;
+		double mWeight = ModelW(wrong);
+		FreshU(wrong);
+		modelResult.push_back(Predict_Result);
+		ModelWeight.push_back(mWeight);
 	}
+	
+	if(!Predict_Result.empty())
+		Predict_Result.clear();
+	
+	for(int i = 0; i < Test.size(); i++) {
+		double isOne = 0;
+		double isZero = 0;
+		for(int j = 0; j < cnt_model; j++) {
+			if(modelResult[j][i] == 0){
+				isZero += ModelWeight[j];
+			}
+			else{
+				isOne += ModelWeight[j];
+			}
+		}
+		if(isZero > isOne){
+			Predict_Result.push_back(0);
+		}
+		else{
+			Predict_Result.push_back(1);
+		}
+	}
+	
+	int cnt_right = 0;
+	for(int i = 0; i < Test.size(); i++) {
+		if(Predict_Result[i] == Validation_Result[i])
+			cnt_right++;
+	}
+	
+	double right = (double) cnt_right / Test.size();
+	
+	cout << right << endl;
 	
 	return 0;
 }

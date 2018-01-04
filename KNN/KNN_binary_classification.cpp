@@ -184,7 +184,9 @@ vector<double> getPredictResult() {
 		for (int j = 0; j < Train.size(); j++) {
 			double d = 0;
 			for (int k = 0; k < Test[i].size(); k++) {
-				d += (Test[i][k] - Train[j][k]) * (Test[i][k] - Train[j][k]);
+				//d += (Test[i][k] - Train[j][k]) * (Test[i][k] - Train[j][k]);
+				//Âü¹þ¶Ù¾àÀë
+				d += abs(Test[i][k] - Train[j][k]);
 			}
 			distance[j] = d;
 		}
@@ -219,7 +221,6 @@ int main(){
 	//Test = DealWithData(Test);
 	
 	for(int j = 0; j < 1; j++) {
-	//	K = 10*(j + 1);
 		Predict_Result = getPredictResult();
 		string v = IntToString(10*(j + 1));
 		string filename = "predict" + v + ".csv";
@@ -227,7 +228,8 @@ int main(){
 		for (int i = 0; i < Predict_Result.size(); i++) {
 			out << Predict_Result[i] << endl;
 		}
-		out.close();		
+		out.close();
+		K = 10*(j + 1);		
 	}
 	
 	
