@@ -61,14 +61,14 @@ struct CompByValue {
 //对数据进行初始化
 void Init(){
 	K = 1; 
-	isTest = 1;
-	TrainPath = "C:/Users/Yuying/Desktop/Project/binary_classification/train.csv";
+	isTest = 0;
+	TrainPath = "C:/Users/Yuying/Desktop/train.csv";
 	ValidationPath = "C:/Users/Yuying/Desktop/validation.csv";
 	TestPath = "C:/Users/Yuying/Desktop/test.csv";
 }
 
 //读入训练集
-void InputTrain(){
+void InputTrain(int index, double mNum){
 	ifstream f(TrainPath);
 	string line;
 	while (getline(f, line)){
@@ -95,6 +95,7 @@ void InputTrain(){
 			}
 			cnt++;
 		}	
+		field[index] *= mNum; 
 		Train_Result.push_back(fields[fields.size() - 1]);
 		fields.pop_back();
 		Train.push_back(fields);
@@ -102,7 +103,7 @@ void InputTrain(){
 }
 
 //读入测试集（验证集）
-void InputTest(bool isTest){
+void InputTest(bool isTest, int index, double mNum){
 	//isTest为1时，读入的是测试集，否则是验证集
 	string filePath;
 	if (isTest)
@@ -136,6 +137,7 @@ void InputTest(bool isTest){
 			}
 			cnt++;
 		}
+		field[index] *= mNum;
 		if (!isTest) {
 			Validation_Result.push_back(fields[fields.size() - 1]);
 			fields.pop_back();
@@ -189,6 +191,7 @@ vector<double> getPredictResult() {
 				d += abs(Test[i][k] - Train[j][k]);
 			}
 			distance[j] = d;
+		//	cout << d << endl; 
 		}
 		vector<pair<int, double>> vec(distance.begin(), distance.end());
     	sort(vec.begin(), vec.end(), comp_by_value);
@@ -215,26 +218,42 @@ vector<double> getPredictResult() {
 
 int main(){
 	Init();
-	InputTrain();
-	InputTest(isTest);
 	//Train = DealWithData(Train);
 	//Test = DealWithData(Test);
 	
+//	int Myindex = 6;
+//	double mNum = 500.0;
+	
 	for(int j = 0; j < 1; j++) {
+		if(!Train.empty())
+			Train.clear();
+		if(!Test.empty())
+			Test.clear();
+		InputTrain(Myindex, mNum);
+		InputTest(isTest, Myindex, mNum);
 		Predict_Result = getPredictResult();
-		string v = IntToString(10*(j + 1));
+		string v = IntToString(j);
 		string filename = "predict" + v + ".csv";
 		ofstream out(filename);
 		for (int i = 0; i < Predict_Result.size(); i++) {
 			out << Predict_Result[i] << endl;
 		}
-		out.close();
-		K = 10*(j + 1);		
+		out.close();	
+//		mNum += 1.0;
+/*		if(j == 3){
+			Myindex = 6;
+			mNum = 1.5;
+		}
+		else if(j == 6){
+			Myindex = 10;
+			mNum = 1.5;
+		}*/ 
+		
 	}
 	
 	
 	
-/*	int cnt_right = 0;
+	int cnt_right = 0;
 	for (int i = 0; i < Predict_Result.size(); i++) {
 		if(Predict_Result[i] == Validation_Result[i])
 			cnt_right++;
@@ -242,7 +261,7 @@ int main(){
 	
 	double right = (double) cnt_right / Predict_Result.size();
 	
-	cout << right << endl;*/
+	cout << right << endl;
 	
 	return 0;
 }

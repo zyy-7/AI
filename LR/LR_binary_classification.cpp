@@ -52,6 +52,8 @@ double nowRight;
 vector<double> TrainPredictResult; 
 //记录所有子模型的预测结果
 vector<vector<double>> modelResult; 
+//记录当前子模型对每个训练样本的预测概率
+vector<double> Trainp; 
 
 //将字符串转化为浮点数
 double stringToNum(string str){
@@ -95,7 +97,7 @@ void Init(){
 	Step = 1;
 	cnt_times = 10000;
 	cnt_batch = 1;
-	cnt_model = 10;
+	cnt_model = 1;
 	nowRight = 0;
 	isTest = 0;
 	TrainPath = "C:/Users/Yuying/Desktop/train.csv";
@@ -212,6 +214,8 @@ vector<vector<double>> DealWithData(vector<vector<double>> DataSet){
 
 //初始化样本权重
 void InitU() {
+	if(!U.empty())
+		U.clear();
 	double num = (double) 1 / Train.size();
 	for(int i = 0; i < Train.size(); i++) {
 		U.push_back(num);
@@ -228,6 +232,18 @@ void FreshU(double e) {
 		else {
 			U[NowTrain[i]] *= s;
 		}
+	/*	if(Train_Result[NowTrain[i]] == 0) {
+			if(Trainp[NowTrain[i]] < 0.5 && Trainp[NowTrain[i]] >= 0.45)
+				U[NowTrain[i]] *= s;
+			else
+				U[NowTrain[i]] /= s;
+		}
+		else if(Train_Result[NowTrain[i]] == 1) {
+			if(Trainp[NowTrain[i]] >= 0.5 && Trainp[NowTrain[i]] <= 0.55)
+				U[NowTrain[i]] *= s;
+			else
+				U[NowTrain[i]] /= s;
+		}*/
 	}
 }
 
@@ -290,6 +306,7 @@ void GetNewW() {
 	srand(time(NULL));
 	for (int i = 0; i < cnt_batch; i++) {
 		int randNum = rand() % Train.size();
+	//	cout << randNum << endl;
 		double s = GetNewS(randNum);
 		for(int j = 0; j < W.size(); j++) {
 			double temp = Sigmoid(s);
@@ -310,6 +327,7 @@ void adaGetNewW() {
 	srand(time(NULL));
 	for (int i = 0; i < cnt_batch; i++) {
 		int randNum = rand() % NowTrain.size();
+	//	cout << randNum << endl;
 		double s = GetNewS(NowTrain[randNum]);
 		for(int j = 0; j < W.size(); j++) {
 			double temp = Sigmoid(s);
@@ -388,6 +406,11 @@ void getPredictTrainResult() {
 	if(!TrainPredictResult.empty()) {
 		TrainPredictResult.clear(); 
 	}
+	
+	if(!Trainp.empty()) {
+		Trainp.clear();
+	}
+	
 	for(int i = 0; i < Train.size(); i++) {
 		double s = 0;
 		for(int j = 0; j < best_W.size(); j++)
@@ -399,6 +422,8 @@ void getPredictTrainResult() {
 			TrainPredictResult.push_back(1);
 		else
 			TrainPredictResult.push_back(0);
+			
+		Trainp.push_back(p);
 	}
 }
 
@@ -410,62 +435,124 @@ int main(){
 	Test = DealWithData(Test);
 	InitU();
 	
-	for(int i = 0; i < cnt_model; i++) {
-		cout << i << endl;
-		Init();
-		InitW();
-		GetNowTrain(i);
-		
-		for(int i = 0; i < cnt_times; i++) {
-			adaGetNewW();
-			if ((i + 1) % 100 == 0) {
-				DynamicBatch();
-				DynamicStep();
+	srand(time(NULL));
+	
+	vector<double> f1;
+	
+	for(int i = 0; i < 50; i++){
+		InitU();
+		for(int i = 0; i < cnt_model; i++) {
+		//	cout << i << endl;
+			Init();
+			InitW();
+			GetNowTrain(i);
+			
+		//	srand(time(NULL));
+			for(int i = 0; i < cnt_times; i++) {
+			//	srand(time(NULL));
+				adaGetNewW();
+				
+				if ((i + 1) % 100 == 0) {
+					DynamicBatch();
+					DynamicStep();
+				}
+			
+				GetResult();
+			}
+			
+			GetBestResult();
+			
+			int TP = 0;
+			int FN = 0;
+			int TN = 0;
+			int FP = 0;
+			
+			for(int i = 0; i < Test.size(); i++) {
+				if(Predict_Result[i] == Validation_Result[i] && Predict_Result[i] == 1)
+					TP++;
+				else if(Predict_Result[i] == 0 && Validation_Result[i] == 1)
+					FN++;
+				else if(Predict_Result[i] == Validation_Result[i] && Predict_Result[i] == 0)
+					TN++;
+				else if(Predict_Result[i] == 1 && Validation_Result[i] == 0)
+					FP++;
 			}
 		
-			GetResult();
+			double Recall = (double) TP / (TP + FN);
+			double Precision = (double) TP / (TP + FP);
+			double F1 = (double) 2 * Precision * Recall / (Precision + Recall);
+			f1.push_back(F1);
+			string filename = "RandomsingleLR.csv";
+			ofstream out(filename);
+			for (int i = 0; i < f1.size(); i++) {
+				out << f1[i] << endl;
+			}
+			out.close();
+		//	cout << F1 << endl; 
+			
+		/*	cout << endl << endl;
+			
+			double r = GetBestResult();
+			getPredictTrainResult();
+			double wrong = (double) 1 - r;
+			double mWeight = ModelW(wrong);
+			FreshU(wrong);
+			modelResult.push_back(Predict_Result);
+			ModelWeight.push_back(mWeight);*/ 
 		}
 		
-		double r = GetBestResult();
-		getPredictTrainResult();
-		double wrong = (double) 1 - r;
-		double mWeight = ModelW(wrong);
-		FreshU(wrong);
-		modelResult.push_back(Predict_Result);
-		ModelWeight.push_back(mWeight);
-	}
-	
-	if(!Predict_Result.empty())
-		Predict_Result.clear();
-	
-	for(int i = 0; i < Test.size(); i++) {
-		double isOne = 0;
-		double isZero = 0;
-		for(int j = 0; j < cnt_model; j++) {
-			if(modelResult[j][i] == 0){
-				isZero += ModelWeight[j];
+	/*	if(!Predict_Result.empty())
+			Predict_Result.clear();
+		
+		for(int i = 0; i < Test.size(); i++) {
+			double isOne = 0;
+			double isZero = 0;
+			for(int j = 0; j < cnt_model; j++) {
+				if(modelResult[j][i] == 0){
+					isZero += ModelWeight[j];
+				}
+				else{
+					isOne += ModelWeight[j];
+				}
+			}
+			if(isZero > isOne){
+				Predict_Result.push_back(0);
 			}
 			else{
-				isOne += ModelWeight[j];
+				Predict_Result.push_back(1);
 			}
 		}
-		if(isZero > isOne){
-			Predict_Result.push_back(0);
+		
+		int TP = 0;
+		int FN = 0;
+		int TN = 0;
+		int FP = 0;
+		
+		for(int i = 0; i < Test.size(); i++) {
+			if(Predict_Result[i] == Validation_Result[i] && Predict_Result[i] == 1)
+				TP++;
+			else if(Predict_Result[i] == 0 && Validation_Result[i] == 1)
+				FN++;
+			else if(Predict_Result[i] == Validation_Result[i] && Predict_Result[i] == 0)
+				TN++;
+			else if(Predict_Result[i] == 1 && Validation_Result[i] == 0)
+				FP++;
 		}
-		else{
-			Predict_Result.push_back(1);
-		}
+	
+		double Recall = (double) TP / (TP + FN);
+		double Precision = (double) TP / (TP + FP);
+		double F1 = (double) 2 * Precision * Recall / (Precision + Recall);
+		f1.push_back(F1);*/ 
+	//	cout << F1 << endl;
+	//	cout << Predict_Result.size() << endl;
 	}
 	
-	int cnt_right = 0;
-	for(int i = 0; i < Test.size(); i++) {
-		if(Predict_Result[i] == Validation_Result[i])
-			cnt_right++;
+/*	string filename = "RandomsingleLR.csv";
+	ofstream out(filename);
+	for (int i = 0; i < f1.size(); i++) {
+		out << f1[i] << endl;
 	}
-	
-	double right = (double) cnt_right / Test.size();
-	
-	cout << right << endl;
+	out.close();*/
 	
 	return 0;
 }
